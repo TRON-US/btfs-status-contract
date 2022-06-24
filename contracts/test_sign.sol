@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -9,7 +9,7 @@ import {OrderTypes} from "./libraries/OrderTypes.sol";
 import {SignatureChecker} from "./libraries/SignatureChecker.sol";
 
 // MerkleDistributor for airdrop to BTFS staker
-contract BtfsStatus {
+contract BtfsStatusTest {
     using SafeMath for uint256;
 
 
@@ -47,14 +47,18 @@ contract BtfsStatus {
 
 
     /**
- * @notice Match ask with a taker bid order using ETH
-     * @param takerBid taker bid order
      * @param makerAsk maker ask order
      */
-    function matchAskWithTakerBidUsingETHAndWETH(OrderTypes.MakerOrder calldata makerAsk) external {
+    function matchAskWithTakerBidUsingETHAndWETH(OrderTypes.MakerOrder calldata makerAsk) external view {
 
         // Check the maker ask order
-        bytes32 askHash = makerAsk.hash();
+        bytes32 askHash = keccak256(
+            abi.encode(
+                makerAsk.signer,
+                makerAsk.bttcAddr,
+                makerAsk.amount
+            )
+        );
         _validateOrder(makerAsk, askHash);
     }
 }

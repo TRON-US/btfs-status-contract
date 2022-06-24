@@ -45,7 +45,6 @@ library SignatureChecker {
      * @param v parameter (27 or 28)
      * @param r parameter
      * @param s parameter
-     * @param domainSeparator paramer to prevent signature being executed in other chains and environments
      * @return true --> if valid // false --> if invalid
      */
     function verify(
