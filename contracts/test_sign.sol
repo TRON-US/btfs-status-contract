@@ -12,12 +12,17 @@ import {SignatureChecker} from "./libraries/SignatureChecker.sol";
 contract BtfsStatusTest {
     using SafeMath for uint256;
 
+    event Log(address);
 
     // owner
     address public owner;
     constructor() {
         owner = msg.sender;
+        emit Log(owner);
     }
+
+
+
 
     /**
  * @notice Verify the validity of the maker order
@@ -49,7 +54,8 @@ contract BtfsStatusTest {
     /**
      * @param makerAsk maker ask order
      */
-    function matchAskWithTakerBidUsingETHAndWETH(OrderTypes.MakerOrder calldata makerAsk) external view {
+    function validateOrder(OrderTypes.MakerOrder calldata makerAsk) external view {
+//        require(owner.address() == "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "owner: is current user."+owner);
 
         // Check the maker ask order
         bytes32 askHash = keccak256(
@@ -60,5 +66,21 @@ contract BtfsStatusTest {
             )
         );
         _validateOrder(makerAsk, askHash);
+    }
+
+    /**
+ * @param makerAsk maker ask order
+     */
+    function testHash(OrderTypes.MakerOrder calldata makerAsk) external view returns (bytes32) {
+
+        // Check the maker ask order
+        bytes32 askHash = keccak256(
+            abi.encode(
+                makerAsk.signer,
+                makerAsk.bttcAddr,
+                makerAsk.amount
+            )
+        );
+        return askHash;
     }
 }
