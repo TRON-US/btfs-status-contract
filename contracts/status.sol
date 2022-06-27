@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.2;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -12,9 +12,9 @@ contract BtfsStatus {
     // info
     struct info {
         uint256 createTime;
-        uint256 version;
+        string version;
         uint256 num;
-        bytes32 hearts;
+        uint8[] hearts;
         uint256 lastNum;
         uint256 lastTime;
     }
@@ -22,9 +22,9 @@ contract BtfsStatus {
     mapping(string => info) private peerMap;
 
     //version
-    bytes16 public currentVersion;
+    string public currentVersion;
 
-    event versionChanged(bytes16 currentVersion, bytes16 version);
+    event versionChanged(string currentVersion, string version);
     event statusReported(bytes32 merkleRootInput, uint256 index, address account, uint256 amount);
 
     //stat
@@ -43,21 +43,16 @@ contract BtfsStatus {
 
 
     // set current version
-    function setCurrentVersion(bytes16 version) external onlyOwner {
-        bytes16 lastVersion = currentVersion;
+    // only owner do it
+    function setCurrentVersion(string memory ver) external {
+        string memory lastVersion = currentVersion;
 
-        currentVersion = version;
+        currentVersion = ver;
         emit versionChanged(lastVersion, currentVersion);
     }
 
 
     function setHeart(string memory peer, uint256 num, uint256 now) internal {
-        require(0 < num, "claim: Invalid num");
-        require(peerMap[peer].lastNum <= num, "claim: Invalid lastNum<num");
-        require(0 < createTime, "claim: Invalid createTime");
-        require(0 < heart, "claim: Invalid heart");
-
-
         uint256 diffTime = now - peerMap[peer].lastTime;
         if (diffTime > 30 * 86400) {
             diffTime = 30 * 86400;
@@ -71,18 +66,21 @@ contract BtfsStatus {
         uint times = diffTime/86400;
         uint256 balance = diffNum;
         for (uint256 i = 1; i < times; i++) {
-            indexTmp = (now - i*86400)%86400%30;
-            peerMap[peer].hearts[indexTmp] = diff/times;
+            uint indexTmp = (now-i*86400)%86400%30;
+            peerMap[peer].hearts[indexTmp] = uint8(diffNum/times);
 
-            balance = balance - diff/times;
+            balance = balance - diffNum/times;
         }
-        peerMap[peer].hearts[index] = balance;
+
+        uint index = now%86400%30;
+        peerMap[peer].hearts[index] = uint8(balance);
     }
 
-    function reportStatus(string memory peer, uint256 createTime, bytes16 version, uint256 num, uint256 now, bytes32 signed) external {
-        require(0 < num, "reportStatus: Invalid num");
+    function reportStatus(string memory peer, uint256 createTime, string memory version, uint256 num, uint256 now, bytes32 signed) external {
         require(0 < createTime, "reportStatus: Invalid createTime");
-        require(0 < heart, "reportStatus: Invalid heart");
+        require(0 < version.length, "reportStatus: Invalid version.length");
+        require(0 < num, "reportStatus: Invalid num");
+        require(0 < signed.length, "reportStatus: Invalid signed");
 
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
@@ -106,30 +104,14 @@ contract BtfsStatus {
         totalStat.total += 1;
 
         emit statusReported(
-                peerMap[peer].createTime,
-                peerMap[peer].version,
-                peerMap[peer].lastNum,
-                peerMap[peer].hearts
+            peerMap[peer].createTime,
+            peerMap[peer].version,
+            peerMap[peer].lastNum,
+            peerMap[peer].hearts
         );
     }
 
     function verify(bytes32 signed, bytes32 node) internal pure returns (bool) {
-        bytes32 computedHash = leaf;
-
-        for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 proofElement = proof[i];
-
-            if (computedHash <= proofElement) {
-                // Hash(current computed hash + current element of the proof)
-                computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
-            } else {
-                // Hash(current element of the proof + current computed hash)
-                computedHash = keccak256(abi.encodePacked(proofElement, computedHash));
-            }
-        }
-
-        // Check if the computed hash (root) is equal to the provided root
-        return computedHash == root;
+        return true;
     }
-
 }
