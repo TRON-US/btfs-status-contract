@@ -29,7 +29,7 @@ contract BtfsStatus {
 
     event signAddressChanged(address lastSignAddress, address currentSignAddress);
     event versionChanged(bytes16 currentVersion, bytes16 version);
-    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, uint8[] hearts);
+    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, address bttcAddress, uint8[] hearts);
 
     // stat
     struct statistics {
@@ -77,13 +77,14 @@ contract BtfsStatus {
             diffNum = 10 * 24;
         }
 
-        uint days = diffTime/86400;
+        uint days1 = diffTime/86400;
+        // uint days1 = diffTime/86400;
         uint256 balanceNum = diffNum;
-        for (uint256 i = 1; i < days; i++) {
-        uint indexTmp = (nowTime-i*86400)%86400%30;
-        peerMap[peer].hearts[indexTmp] = uint8(diffNum/days);
+        for (uint256 i = 1; i < days1; i++) {
+            uint indexTmp = (nowTime-i*86400)%86400%30;
+            peerMap[peer].hearts[indexTmp] = uint8(diffNum/days1);
 
-        balanceNum = balanceNum - diffNum/days;
+            balanceNum = balanceNum - diffNum/days1;
         }
 
         uint index = nowTime%86400%30;
@@ -124,14 +125,30 @@ contract BtfsStatus {
         // set total
         totalStat.total += 1;
 
+        emitStatusReported(
+            peer,
+            createTime,
+            version,
+            num,
+            nowTime,
+            bttcAddress
+        );
+    }
+
+    function emitStatusReported(string memory peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, address bttcAddress) internal {
         emit statusReported(
             peer,
             createTime,
             version,
             num,
             nowTime,
+            bttcAddress,
             peerMap[peer].hearts
         );
+    }
+
+    function genHash(string memory peer, uint32 createTime, bytes16 version, uint16 num, address bttcAddress) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(peer, createTime, version, num, bttcAddress));
     }
 
     function verify(bytes32 hash, bytes memory signed) internal view returns (bool) {
