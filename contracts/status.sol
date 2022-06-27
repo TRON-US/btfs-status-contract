@@ -21,16 +21,17 @@ contract BtfsStatus {
     // which peer, last info
     mapping(string => info) private peerMap;
 
-    // address singnedAddress = "0x4b1d4f6ffcd4aafec6c05e7844f0f0b07985f4ca";
-    address singnedAddress;
+    // sign address
+    address public currentSignAddress = 0xCf5609B003B2776699eEA1233F7C82D5695cC9AA;
 
-    //version
+    // version
     bytes16 public currentVersion;
 
+    event signAddressChanged(address lastSignAddress, address currentSignAddress);
     event versionChanged(bytes16 currentVersion, bytes16 version);
-    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint256 nowTime, uint8[] hearts);
+    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, uint8[] hearts);
 
-    //stat
+    // stat
     struct statistics {
         uint64 total;
         uint64 totalUsers;
@@ -45,8 +46,15 @@ contract BtfsStatus {
     }
 
 
-    // set current version
-    // only owner do it
+    // set current version, only owner do it
+    function setSignAddress(address addr) external {
+        address lastSignAddress = currentSignAddress;
+
+        currentSignAddress = addr;
+        emit signAddressChanged(lastSignAddress, currentSignAddress);
+    }
+
+    // set current version, only owner do it
     function setCurrentVersion(bytes16 ver) external {
         bytes16 lastVersion = currentVersion;
 
@@ -54,11 +62,10 @@ contract BtfsStatus {
         emit versionChanged(lastVersion, currentVersion);
     }
 
-    function getValidHighHost(uint256 nowTime) external returns(info[] memory) {
+    // get host when score = 8.0
+    function getValidHighHost() external returns(info[] memory) {}
 
-    }
-
-    function setHeart(string memory peer, uint16 num, uint256 nowTime) internal {
+    function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
         if (diffTime > 30 * 86400) {
             diffTime = 30 * 86400;
@@ -82,13 +89,14 @@ contract BtfsStatus {
         peerMap[peer].hearts[index] = uint8(balance);
     }
 
-    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, uint256 nowTime, bytes memory signed) external {
+    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, bytes memory signed) external {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < version.length, "reportStatus: Invalid version.length");
         require(0 < num, "reportStatus: Invalid num");
         require(0 < signed.length, "reportStatus: Invalid signed");
-
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
+
+        uint32 nowTime = uint32(block.timestamp);
 
         // Verify the signed with msg.sender.
         bytes32 hash = keccak256(abi.encodePacked(peer, createTime, version, num, nowTime));
@@ -126,7 +134,7 @@ contract BtfsStatus {
         return recoverSigner(hash, signed);
     }
 
-    function recoverSigner(bytes32 message, bytes memory sig)
+    function recoverSigner(bytes32 hash, bytes memory sig)
     internal
     view
     returns (bool)
@@ -137,7 +145,7 @@ contract BtfsStatus {
 
         (v, r, s) = splitSignature(sig);
 
-        return ecrecover(message, v, r, s) == address(singnedAddress);
+        return ecrecover(hash, v, r, s) == currentSignAddress;
     }
 
     function splitSignature(bytes memory sig)
