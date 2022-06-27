@@ -65,31 +65,32 @@ contract BtfsStatus {
     // get host when score = 8.0
     function getValidHighHost() external returns(info[] memory) {}
 
+    // set heart, max idle days = 10
     function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
-        if (diffTime > 30 * 86400) {
-            diffTime = 30 * 86400;
+        if (diffTime > 10 * 86400) {
+            diffTime = 10 * 86400;
         }
 
         uint256 diffNum = num - peerMap[peer].lastNum;
-        if (diffNum > 30) {
-            diffNum = 30;
+        if (diffNum > 10 * 24) {
+            diffNum = 10 * 24;
         }
 
-        uint times = diffTime/86400;
-        uint256 balance = diffNum;
-        for (uint256 i = 1; i < times; i++) {
-            uint indexTmp = (nowTime-i*86400)%86400%30;
-            peerMap[peer].hearts[indexTmp] = uint8(diffNum/times);
+        uint days = diffTime/86400;
+        uint256 balanceNum = diffNum;
+        for (uint256 i = 1; i < days; i++) {
+        uint indexTmp = (nowTime-i*86400)%86400%30;
+        peerMap[peer].hearts[indexTmp] = uint8(diffNum/days);
 
-            balance = balance - diffNum/times;
+        balanceNum = balanceNum - diffNum/days;
         }
 
         uint index = nowTime%86400%30;
-        peerMap[peer].hearts[index] = uint8(balance);
+        peerMap[peer].hearts[index] = uint8(balanceNum);
     }
 
-    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, bytes memory signed) external {
+    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, address bttcAddress, bytes memory signed) external {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < version.length, "reportStatus: Invalid version.length");
         require(0 < num, "reportStatus: Invalid num");
@@ -98,9 +99,12 @@ contract BtfsStatus {
 
         uint32 nowTime = uint32(block.timestamp);
 
-        // Verify the signed with msg.sender.
-        bytes32 hash = keccak256(abi.encodePacked(peer, createTime, version, num, nowTime));
+        // verify input param with the signed data.
+        bytes32 hash = keccak256(abi.encodePacked(peer, createTime, version, num, bttcAddress));
         require(verify(hash, signed), "reportStatus: Invalid signed address.");
+
+        // check bttcAddress and sender
+        require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
 
         uint index = nowTime%86400%30;
         peerMap[peer].createTime = createTime;
