@@ -11,21 +11,24 @@ contract BtfsStatus {
 
     // info
     struct info {
-        uint256 createTime;
+        uint32 createTime;
         bytes16 version;
-        uint256 num;
+        uint16 num;
         uint8[] hearts;
-        uint256 lastNum;
-        uint256 lastTime;
+        uint16 lastNum;
+        uint32 lastTime;
     }
     // which peer, last info
     mapping(string => info) private peerMap;
+
+    // address singnedAddress = "0x4b1d4f6ffcd4aafec6c05e7844f0f0b07985f4ca";
+    address singnedAddress;
 
     //version
     bytes16 public currentVersion;
 
     event versionChanged(bytes16 currentVersion, bytes16 version);
-    event statusReported(string peer, uint256 createTime, bytes16 version, uint256 num, uint256 nowTime, uint8[] hearts);
+    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint256 nowTime, uint8[] hearts);
 
     //stat
     struct statistics {
@@ -51,8 +54,11 @@ contract BtfsStatus {
         emit versionChanged(lastVersion, currentVersion);
     }
 
+    function getValidHighHost(uint256 nowTime) external returns(info[] memory) {
 
-    function setHeart(string memory peer, uint256 num, uint256 nowTime) internal {
+    }
+
+    function setHeart(string memory peer, uint16 num, uint256 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
         if (diffTime > 30 * 86400) {
             diffTime = 30 * 86400;
@@ -76,7 +82,7 @@ contract BtfsStatus {
         peerMap[peer].hearts[index] = uint8(balance);
     }
 
-    function reportStatus(string memory peer, uint256 createTime, bytes16 version, uint256 num, uint256 nowTime, bytes32 signed) external {
+    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, uint256 nowTime, bytes memory signed) external {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < version.length, "reportStatus: Invalid version.length");
         require(0 < num, "reportStatus: Invalid num");
@@ -85,8 +91,8 @@ contract BtfsStatus {
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
         // Verify the signed with msg.sender.
-        bytes32 node = keccak256(abi.encodePacked(peer, createTime, version, num, nowTime));
-        require(verify(signed, node), "reportStatus: Invalid signed.");
+        bytes32 hash = keccak256(abi.encodePacked(peer, createTime, version, num, nowTime));
+        require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
         uint index = nowTime%86400%30;
         peerMap[peer].createTime = createTime;
@@ -116,7 +122,48 @@ contract BtfsStatus {
         );
     }
 
-    function verify(bytes32 signed, bytes32 node) internal pure returns (bool) {
-        return true;
+    function verify(bytes32 hash, bytes memory signed) internal view returns (bool) {
+        return recoverSigner(hash, signed);
+    }
+
+    function recoverSigner(bytes32 message, bytes memory sig)
+    internal
+    view
+    returns (bool)
+    {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+
+        (v, r, s) = splitSignature(sig);
+
+        return ecrecover(message, v, r, s) == address(singnedAddress);
+    }
+
+    function splitSignature(bytes memory sig)
+    internal
+    pure
+    returns (
+        uint8,
+        bytes32,
+        bytes32
+    )
+    {
+        require(sig.length == 65);
+
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+
+        assembly {
+        // first 32 bytes, after the length prefix
+            r := mload(add(sig, 32))
+        // second 32 bytes
+            s := mload(add(sig, 64))
+        // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 96)))
+        }
+
+        return (v, r, s);
     }
 }
