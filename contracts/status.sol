@@ -89,13 +89,13 @@ contract BtfsStatus {
         uint diffDays = diffTime / 86400;
         uint256 balanceNum = diffNum;
         for (uint256 i = 1; i < diffDays; i++) {
-            uint indexTmp = (nowTime - i * 86400) % 86400 % 30;
+            uint indexTmp = ((nowTime - i * 86400) / 86400) % 30;
             peerMap[peer].hearts[indexTmp] = uint8(diffNum/diffDays);
 
             balanceNum = balanceNum - diffNum/diffDays;
         }
 
-        uint index = nowTime % 86400 % 30;
+        uint index = (nowTime / 86400) % 30;
         peerMap[peer].hearts[index] = uint8(balanceNum);
     }
 
@@ -114,12 +114,7 @@ contract BtfsStatus {
         // return;
 
         uint32 nowTime = uint32(block.timestamp);
-        uint index = nowTime % 86400 % 30;
-
-        peerMap[peer].createTime = createTime;
-        peerMap[peer].version = version;
-        peerMap[peer].lastNum = num;
-        peerMap[peer].lastTime = nowTime;
+        uint index = (nowTime / 86400) % 30;
 
         // first report
         if (peerMap[peer].lastNum == 0) {
@@ -127,8 +122,8 @@ contract BtfsStatus {
                 num = 24;
             }
 
-            uint8[30] memory hearts;
-            peerMap[peer].hearts = hearts;
+            // uint8[30] memory hearts;
+            // peerMap[peer].hearts = hearts;
             peerMap[peer].hearts[index] = uint8(num);
 
             totalStat.totalUsers += 1;
@@ -139,6 +134,11 @@ contract BtfsStatus {
 
             setHeart(peer, num, nowTime);
         }
+
+        peerMap[peer].createTime = createTime;
+        peerMap[peer].version = version;
+        peerMap[peer].lastNum = num;
+        peerMap[peer].lastTime = nowTime;
 
         return;
 
