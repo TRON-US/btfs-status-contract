@@ -9,16 +9,14 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract BtfsStatus {
     using SafeMath for uint256;
 
-    // info
+    // map[peer]info
     struct info {
         uint32 createTime;
         string version;
-        uint16 num;
-        uint8[] hearts;
         uint16 lastNum;
         uint32 lastTime;
+        uint8[30] hearts;
     }
-    // which peer, last info
     mapping(string => info) private peerMap;
 
     // sign address
@@ -29,7 +27,7 @@ contract BtfsStatus {
 
     event signAddressChanged(address lastSignAddress, address currentSignAddress);
     event versionChanged(string currentVersion, string version);
-    event statusReported(string peer, uint32 createTime, string version, uint16 num, uint32 nowTime, address bttcAddress, uint8[] hearts);
+    event statusReported(string peer, uint32 createTime, string version, uint16 num, uint32 nowTime, address bttcAddress, uint8[30] hearts);
 
     // stat
     struct statistics {
@@ -47,22 +45,34 @@ contract BtfsStatus {
 
     // set current version, only owner do it
     function setSignAddress(address addr) external {
-        address lastSignAddress = currentSignAddress;
-
+        emit signAddressChanged(currentSignAddress, addr);
         currentSignAddress = addr;
-        emit signAddressChanged(lastSignAddress, currentSignAddress);
     }
 
     // set current version, only owner do it
     function setCurrentVersion(string memory ver) external {
-        string memory lastVersion = currentVersion;
-
+        emit versionChanged(currentVersion, ver);
         currentVersion = ver;
-        emit versionChanged(lastVersion, currentVersion);
     }
 
     // get host when score = 8.0
     function getHighScoreHost() external returns(info[] memory) {}
+
+    function getStatus(string memory peer) external view returns(string memory, uint32, string memory, uint16, uint32, uint8[30] memory) {
+        if (peerMap[peer].lastNum == 0) {
+            uint8[30] memory hearts;
+            return ("", 0, "", 0, 0, hearts);
+        } else {
+            // uint32 createTime;
+            // string version;
+            // uint16 num;
+            // uint8[30] hearts;
+            // uint16 lastNum;
+            // uint32 lastTime;
+            return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].lastNum, peerMap[peer].lastTime, peerMap[peer].hearts);
+        }
+    }
+
 
     // set heart, max idle days = 10
     function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
@@ -95,8 +105,6 @@ contract BtfsStatus {
         require(0 < signed.length, "reportStatus: Invalid signed");
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
-        uint32 nowTime = uint32(block.timestamp);
-
         // verify input param with the signed data.
         // bytes32 hash = keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
         // require(verify(hash, signed), "reportStatus: Invalid signed address.");
@@ -105,22 +113,34 @@ contract BtfsStatus {
         // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
         // return;
 
+        uint32 nowTime = uint32(block.timestamp);
         uint index = nowTime % 86400 % 30;
+
         peerMap[peer].createTime = createTime;
         peerMap[peer].version = version;
         peerMap[peer].lastNum = num;
+        peerMap[peer].lastTime = nowTime;
 
         // first report
-        if (peerMap[peer].num == 0) {
+        if (peerMap[peer].lastNum == 0) {
             if (num > 24) {
                 num = 24;
             }
+
+            uint8[30] memory hearts;
+            peerMap[peer].hearts = hearts;
             peerMap[peer].hearts[index] = uint8(num);
+
             totalStat.totalUsers += 1;
         } else {
-            // already reprot
+            // if (nowTime - peerMap[peer].lastTime < 86400){
+            //     return;
+            // }
+
             setHeart(peer, num, nowTime);
         }
+
+        return;
 
         // set total
         totalStat.total += 1;
