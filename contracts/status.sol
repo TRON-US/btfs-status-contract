@@ -83,7 +83,7 @@ contract BtfsStatus {
         uint diffDays = diffTime / 86400;
         uint256 balanceNum = diffNum;
 
-        // 1.set 0, more than 30 days' diffDays
+        // 1.reset 0, more than 30 days' diffDays
         for (uint256 i = 1; i < diffDays+1; i++) {
             uint indexTmp = ((nowTime + i * 86400) / 86400) % 30;
             peerMap[peer].hearts[indexTmp] = 0;
@@ -102,6 +102,7 @@ contract BtfsStatus {
         peerMap[peer].hearts[index] += uint8(balanceNum);
     }
 
+    // report status
     function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress, bytes memory signed) external payable {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < num, "reportStatus: Invalid num");
@@ -141,6 +142,7 @@ contract BtfsStatus {
         peerMap[peer].lastNum = num;
         peerMap[peer].lastTime = nowTime;
 
+        // test
         return;
 
         // set total
