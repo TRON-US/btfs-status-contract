@@ -62,7 +62,7 @@ contract BtfsStatus {
     }
 
     // get host when score = 8.0
-    function getValidHighHost() external returns(info[] memory) {}
+    function getHighScoreHost() external returns(info[] memory) {}
 
     // set heart, max idle days = 10
     function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
@@ -76,23 +76,21 @@ contract BtfsStatus {
             diffNum = 10 * 24;
         }
 
-        uint days1 = diffTime/86400;
-        // uint days1 = diffTime/86400;
+        uint diffDays = diffTime / 86400;
         uint256 balanceNum = diffNum;
-        for (uint256 i = 1; i < days1; i++) {
-            uint indexTmp = (nowTime-i*86400)%86400%30;
-            peerMap[peer].hearts[indexTmp] = uint8(diffNum/days1);
+        for (uint256 i = 1; i < diffDays; i++) {
+            uint indexTmp = (nowTime - i * 86400) % 86400 % 30;
+            peerMap[peer].hearts[indexTmp] = uint8(diffNum/diffDays);
 
-            balanceNum = balanceNum - diffNum/days1;
+            balanceNum = balanceNum - diffNum/diffDays;
         }
 
-        uint index = nowTime%86400%30;
+        uint index = nowTime % 86400 % 30;
         peerMap[peer].hearts[index] = uint8(balanceNum);
     }
 
     function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress, bytes memory signed) external payable {
         require(0 < createTime, "reportStatus: Invalid createTime");
-        // require(0 < version.length, "reportStatus: Invalid version.length");
         require(0 < num, "reportStatus: Invalid num");
         require(0 < signed.length, "reportStatus: Invalid signed");
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
@@ -104,7 +102,6 @@ contract BtfsStatus {
         require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
         // check bttcAddress and sender
-        // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
         require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
 
         return;
@@ -152,32 +149,14 @@ contract BtfsStatus {
         return recoverSigner(hash, signed);
     }
 
-    function recoverSigner(bytes32 hash, bytes memory sig)
-    internal
-    view
-    returns (bool)
+    function recoverSigner(bytes32 hash, bytes memory sig) internal view returns (bool)
     {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
+        (uint8 v, bytes32 r, bytes32 s) = splitSignature(sig);
 
-        (v, r, s) = splitSignature(sig);
-
-        if (v <= 1) {
-            v = v+27;
-        }
-
-        return ecrecover(hash, 27, r, s) == currentSignAddress;
+        return ecrecover(hash, v+27, r, s) == currentSignAddress;
     }
 
-    function splitSignature(bytes memory sig)
-    internal
-    pure
-    returns (
-        uint8,
-        bytes32,
-        bytes32
-    )
+    function splitSignature(bytes memory sig) internal pure returns (uint8, bytes32, bytes32)
     {
         require(sig.length == 65);
 
@@ -203,23 +182,13 @@ contract BtfsStatus {
     }
 
     // call from external
-    function recoverSignerExt(bytes32 hash, bytes memory sig)
-    external
-    view
-    returns (address)
+    function recoverSignerExt(bytes32 hash, bytes memory sig) external view returns (address)
     {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
+        (uint8 v, bytes32 r, bytes32 s) = splitSignature(sig);
 
-        (v, r, s) = splitSignature(sig);
-
-        if (v <= 1) {
-            v = v+27;
-        }
-
-        address addr1 = ecrecover(hash, v, r, s);
+        address addr1 = ecrecover(hash, v+27, r, s);
         require(addr1 == currentSignAddress, "reportStatus: xxx");
+
         return addr1;
     }
 }
