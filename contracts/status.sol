@@ -63,12 +63,6 @@ contract BtfsStatus {
             uint8[30] memory hearts;
             return ("", 0, "", 0, 0, hearts);
         } else {
-            // uint32 createTime;
-            // string version;
-            // uint16 num;
-            // uint8[30] hearts;
-            // uint16 lastNum;
-            // uint32 lastTime;
             return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].lastNum, peerMap[peer].lastTime, peerMap[peer].hearts);
         }
     }
@@ -88,6 +82,14 @@ contract BtfsStatus {
 
         uint diffDays = diffTime / 86400;
         uint256 balanceNum = diffNum;
+
+        // 1.set 0, more than 30 days' diffDays
+        for (uint256 i = 1; i < diffDays+1; i++) {
+            uint indexTmp = ((nowTime + i * 86400) / 86400) % 30;
+            peerMap[peer].hearts[indexTmp] = 0;
+        }
+
+        // 2.set new (diffDays-1) average num
         for (uint256 i = 1; i < diffDays; i++) {
             uint indexTmp = ((nowTime - i * 86400) / 86400) % 30;
             peerMap[peer].hearts[indexTmp] = uint8(diffNum/diffDays);
@@ -95,8 +97,9 @@ contract BtfsStatus {
             balanceNum = balanceNum - diffNum/diffDays;
         }
 
+        // 3.set today balanceNum
         uint index = (nowTime / 86400) % 30;
-        peerMap[peer].hearts[index] = uint8(balanceNum);
+        peerMap[peer].hearts[index] += uint8(balanceNum);
     }
 
     function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress, bytes memory signed) external payable {
@@ -122,8 +125,6 @@ contract BtfsStatus {
                 num = 24;
             }
 
-            // uint8[30] memory hearts;
-            // peerMap[peer].hearts = hearts;
             peerMap[peer].hearts[index] = uint8(num);
 
             totalStat.totalUsers += 1;
@@ -204,13 +205,9 @@ contract BtfsStatus {
     }
 
     // call from external
-    function recoverSignerExt(bytes32 hash, bytes memory sig) external view returns (address)
+    function recoverSignerExt(bytes32 hash, bytes memory sig) external pure returns (address)
     {
         (uint8 v, bytes32 r, bytes32 s) = splitSignature(sig);
-
-        address addr1 = ecrecover(hash, v+27, r, s);
-        require(addr1 == currentSignAddress, "reportStatus: xxx");
-
-        return addr1;
+        return ecrecover(hash, v+27, r, s);
     }
 }
