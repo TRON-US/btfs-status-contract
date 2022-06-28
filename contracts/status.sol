@@ -95,42 +95,44 @@ contract BtfsStatus {
         require(0 < signed.length, "reportStatus: Invalid signed");
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
-        // uint32 nowTime = uint32(block.timestamp);
+        uint32 nowTime = uint32(block.timestamp);
 
         // verify input param with the signed data.
-        bytes32 hash = keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
-        require(verify(hash, signed), "reportStatus: Invalid signed address.");
+        // bytes32 hash = keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
+        // require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
-        // check bttcAddress and sender
-        require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
+        // // check bttcAddress and sender
+        // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
+        // return;
 
-        return;
-        // uint index = nowTime%86400%30;
-        // peerMap[peer].createTime = createTime;
-        // peerMap[peer].version = version;
-        // peerMap[peer].lastNum = num;
+        uint index = nowTime % 86400 % 30;
+        peerMap[peer].createTime = createTime;
+        peerMap[peer].version = version;
+        peerMap[peer].lastNum = num;
 
-        // if (peerMap[peer].num == 0) {
-        //     if (num > 24) {
-        //         num = 24;
-        //     }
-        //     peerMap[peer].hearts[index] = uint8(num);
-        //     totalStat.totalUsers += 1;
-        // } else {
-        //     setHeart(peer, num, nowTime);
-        // }
+        // first report
+        if (peerMap[peer].num == 0) {
+            if (num > 24) {
+                num = 24;
+            }
+            peerMap[peer].hearts[index] = uint8(num);
+            totalStat.totalUsers += 1;
+        } else {
+            // already reprot
+            setHeart(peer, num, nowTime);
+        }
 
-        // // set total
-        // totalStat.total += 1;
+        // set total
+        totalStat.total += 1;
 
-        // emitStatusReported(
-        //     peer,
-        //     createTime,
-        //     version,
-        //     num,
-        //     nowTime,
-        //     bttcAddress
-        // );
+        emitStatusReported(
+            peer,
+            createTime,
+            version,
+            num,
+            nowTime,
+            bttcAddress
+        );
     }
 
     function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint16 num, uint32 nowTime, address bttcAddress) internal {
