@@ -12,7 +12,7 @@ contract BtfsStatus {
     // info
     struct info {
         uint32 createTime;
-        bytes16 version;
+        string version;
         uint16 num;
         uint8[] hearts;
         uint16 lastNum;
@@ -22,14 +22,14 @@ contract BtfsStatus {
     mapping(string => info) private peerMap;
 
     // sign address
-    address public currentSignAddress = 0xCf5609B003B2776699eEA1233F7C82D5695cC9AA;
+    address public currentSignAddress = 0x22df207EC3C8D18fEDeed87752C5a68E5b4f6FbD;
 
     // version
-    bytes16 public currentVersion;
+    string public currentVersion;
 
     event signAddressChanged(address lastSignAddress, address currentSignAddress);
-    event versionChanged(bytes16 currentVersion, bytes16 version);
-    event statusReported(string peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, address bttcAddress, uint8[] hearts);
+    event versionChanged(string currentVersion, string version);
+    event statusReported(string peer, uint32 createTime, string version, uint16 num, uint32 nowTime, address bttcAddress, uint8[] hearts);
 
     // stat
     struct statistics {
@@ -45,7 +45,6 @@ contract BtfsStatus {
         owner = msg.sender;
     }
 
-
     // set current version, only owner do it
     function setSignAddress(address addr) external {
         address lastSignAddress = currentSignAddress;
@@ -55,8 +54,8 @@ contract BtfsStatus {
     }
 
     // set current version, only owner do it
-    function setCurrentVersion(bytes16 ver) external {
-        bytes16 lastVersion = currentVersion;
+    function setCurrentVersion(string memory ver) external {
+        string memory lastVersion = currentVersion;
 
         currentVersion = ver;
         emit versionChanged(lastVersion, currentVersion);
@@ -91,51 +90,53 @@ contract BtfsStatus {
         peerMap[peer].hearts[index] = uint8(balanceNum);
     }
 
-    function reportStatus(string memory peer, uint32 createTime, bytes16 version, uint16 num, address bttcAddress, bytes memory signed) external {
+    function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress, bytes memory signed) external payable {
         require(0 < createTime, "reportStatus: Invalid createTime");
-        require(0 < version.length, "reportStatus: Invalid version.length");
+        // require(0 < version.length, "reportStatus: Invalid version.length");
         require(0 < num, "reportStatus: Invalid num");
         require(0 < signed.length, "reportStatus: Invalid signed");
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
-        uint32 nowTime = uint32(block.timestamp);
+        // uint32 nowTime = uint32(block.timestamp);
 
         // verify input param with the signed data.
-        bytes32 hash = keccak256(abi.encodePacked(peer, createTime, version, num, bttcAddress));
+        bytes32 hash = keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
         require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
         // check bttcAddress and sender
+        // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
         require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
 
-        uint index = nowTime%86400%30;
-        peerMap[peer].createTime = createTime;
-        peerMap[peer].version = version;
-        peerMap[peer].lastNum = num;
+        return;
+        // uint index = nowTime%86400%30;
+        // peerMap[peer].createTime = createTime;
+        // peerMap[peer].version = version;
+        // peerMap[peer].lastNum = num;
 
-        if (peerMap[peer].num == 0) {
-            if (num > 24) {
-                num = 24;
-            }
-            peerMap[peer].hearts[index] = uint8(num);
-            totalStat.totalUsers += 1;
-        } else {
-            setHeart(peer, num, nowTime);
-        }
+        // if (peerMap[peer].num == 0) {
+        //     if (num > 24) {
+        //         num = 24;
+        //     }
+        //     peerMap[peer].hearts[index] = uint8(num);
+        //     totalStat.totalUsers += 1;
+        // } else {
+        //     setHeart(peer, num, nowTime);
+        // }
 
-        // set total
-        totalStat.total += 1;
+        // // set total
+        // totalStat.total += 1;
 
-        emitStatusReported(
-            peer,
-            createTime,
-            version,
-            num,
-            nowTime,
-            bttcAddress
-        );
+        // emitStatusReported(
+        //     peer,
+        //     createTime,
+        //     version,
+        //     num,
+        //     nowTime,
+        //     bttcAddress
+        // );
     }
 
-    function emitStatusReported(string memory peer, uint32 createTime, bytes16 version, uint16 num, uint32 nowTime, address bttcAddress) internal {
+    function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint16 num, uint32 nowTime, address bttcAddress) internal {
         emit statusReported(
             peer,
             createTime,
@@ -145,10 +146,6 @@ contract BtfsStatus {
             bttcAddress,
             peerMap[peer].hearts
         );
-    }
-
-    function genHash(string memory peer, uint32 createTime, bytes16 version, uint16 num, address bttcAddress) external pure returns (bytes32) {
-        return keccak256(abi.encodePacked(peer, createTime, version, num, bttcAddress));
     }
 
     function verify(bytes32 hash, bytes memory signed) internal view returns (bool) {
@@ -166,7 +163,11 @@ contract BtfsStatus {
 
         (v, r, s) = splitSignature(sig);
 
-        return ecrecover(hash, v, r, s) == currentSignAddress;
+        if (v <= 1) {
+            v = v+27;
+        }
+
+        return ecrecover(hash, 27, r, s) == currentSignAddress;
     }
 
     function splitSignature(bytes memory sig)
@@ -194,5 +195,31 @@ contract BtfsStatus {
         }
 
         return (v, r, s);
+    }
+
+    // call from external
+    function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) external pure returns (bytes32) {
+        return keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
+    }
+
+    // call from external
+    function recoverSignerExt(bytes32 hash, bytes memory sig)
+    external
+    view
+    returns (address)
+    {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+
+        (v, r, s) = splitSignature(sig);
+
+        if (v <= 1) {
+            v = v+27;
+        }
+
+        address addr1 = ecrecover(hash, v, r, s);
+        require(addr1 == currentSignAddress, "reportStatus: xxx");
+        return addr1;
     }
 }
