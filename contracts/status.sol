@@ -83,13 +83,8 @@ contract BtfsStatus {
         uint diffDays = diffTime / 86400;
         uint256 balanceNum = diffNum;
 
-        // 1.reset 0, more than 30 days' diffDays
-        for (uint256 i = 1; i < diffDays+1; i++) {
-            uint indexTmp = ((nowTime + i * 86400) / 86400) % 30;
-            peerMap[peer].hearts[indexTmp] = 0;
-        }
 
-        // 2.set new (diffDays-1) average num
+        // 1.set new (diffDays-1) average num; (it is alse reset 0 for more than 30 days' diffDays)
         for (uint256 i = 1; i < diffDays; i++) {
             uint indexTmp = ((nowTime - i * 86400) / 86400) % 30;
             peerMap[peer].hearts[indexTmp] = uint8(diffNum/diffDays);
@@ -97,7 +92,7 @@ contract BtfsStatus {
             balanceNum = balanceNum - diffNum/diffDays;
         }
 
-        // 3.set today balanceNum
+        // 2.set today balanceNum
         uint index = (nowTime / 86400) % 30;
         peerMap[peer].hearts[index] += uint8(balanceNum);
     }
@@ -110,8 +105,8 @@ contract BtfsStatus {
         require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
 
         // verify input param with the signed data.
-        // bytes32 hash = keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
-        // require(verify(hash, signed), "reportStatus: Invalid signed address.");
+        bytes32 hash = genHash(peer, createTime, version, num, bttcAddress);
+        require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
         // // check bttcAddress and sender
         // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
@@ -141,9 +136,6 @@ contract BtfsStatus {
         peerMap[peer].version = version;
         peerMap[peer].lastNum = num;
         peerMap[peer].lastTime = nowTime;
-
-        // test
-        return;
 
         // set total
         totalStat.total += 1;
@@ -201,10 +193,14 @@ contract BtfsStatus {
         return (v, r, s);
     }
 
+    function genHash(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) internal pure returns (bytes32) {
+        bytes memory data = abi.encode(peer, createTime, version, num, bttcAddress);
+        return keccak256(abi.encode("\x19Ethereum Signed Message:\n", data.length, data));
+    }
+
     // call from external
     function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) external pure returns (bytes32) {
-        // msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
-        return keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
+        return genHash(peer, createTime, version, num, bttcAddress);
     }
 
     // call from external
