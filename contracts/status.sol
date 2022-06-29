@@ -13,9 +13,9 @@ contract BtfsStatus {
     struct info {
         uint32 createTime;
         string version;
-        uint16 lastNum; //Nounce uint32
+        uint32 LastNonce;
         uint32 lastTime;
-        uint8[30] hearts; //uint8
+        uint16[30] hearts;
     }
     mapping(string => info) private peerMap;
 
@@ -27,7 +27,7 @@ contract BtfsStatus {
 
     event signAddressChanged(address lastSignAddress, address currentSignAddress);
     event versionChanged(string currentVersion, string version);
-    event statusReported(string peer, uint32 createTime, string version, uint16 num, uint32 nowTime, address bttcAddress, uint8[30] hearts);
+    event statusReported(string peer, uint32 createTime, string version, uint16 Nonce, uint32 nowTime, address bttcAddress, uint16[30] hearts);
 
     // stat
     struct statistics {
@@ -58,38 +58,38 @@ contract BtfsStatus {
     // get host when score = 8.0
     function getHighScoreHost() external returns(info[] memory) {}
 
-    function getStatus(string memory peer) external view returns(string memory, uint32, string memory, uint16, uint32, uint8[30] memory) {
-        if (peerMap[peer].lastNum == 0) {
-            uint8[30] memory hearts;
+    function getStatus(string memory peer) external view returns(string memory, uint32, string memory, uint32, uint32, uint16[30] memory) {
+        if (peerMap[peer].LastNonce == 0) {
+            uint16[30] memory hearts;
             return ("", 0, "", 0, 0, hearts);
         } else {
-            return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].lastNum, peerMap[peer].lastTime, peerMap[peer].hearts);
+            return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].LastNonce, peerMap[peer].lastTime, peerMap[peer].hearts);
         }
     }
 
 
     // set heart, max idle days = 10
-    function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
+    function setHeart(string memory peer, uint16 Nonce, uint32 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
         if (diffTime > 30 * 86400) {
             diffTime = 30 * 86400;
         }
 
-        uint256 diffNum = num - peerMap[peer].lastNum;
-        if (diffNum > 30 * 24) {
-            diffNum = 30 * 24;
+        uint256 diffNonce = Nonce - peerMap[peer].LastNonce;
+        if (diffNonce > 30 * 24) {
+            diffNonce = 30 * 24;
         }
 
         uint diffDays = diffTime / 86400;
-        uint256 balanceNum = diffNum;
+        uint256 balanceNum = diffNonce;
 
 
-        // 1.set new (diffDays-1) average num; (it is alse reset 0 for more than 30 days' diffDays)
+        // 1.set new (diffDays-1) average Nonce; (it is alse reset 0 for more than 30 days' diffDays)
         for (uint256 i = 1; i < diffDays; i++) {
             uint indexTmp = ((nowTime - i * 86400) / 86400) % 30;
-            peerMap[peer].hearts[indexTmp] = uint8(diffNum/diffDays);
+            peerMap[peer].hearts[indexTmp] = uint8(diffNonce/diffDays);
 
-            balanceNum = balanceNum - diffNum/diffDays;
+            balanceNum = balanceNum - diffNonce/diffDays;
         }
 
         // 2.set today balanceNum
@@ -98,14 +98,14 @@ contract BtfsStatus {
     }
 
     // report status
-    function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress, bytes memory signed) external payable {
+    function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress, bytes memory signed) external payable {
         require(0 < createTime, "reportStatus: Invalid createTime");
-        require(0 < num, "reportStatus: Invalid num");
+        require(0 < Nonce, "reportStatus: Invalid Nonce");
         require(0 < signed.length, "reportStatus: Invalid signed");
-        require(peerMap[peer].lastNum <= num, "reportStatus: Invalid lastNum<num");
+        require(peerMap[peer].LastNonce <= Nonce, "reportStatus: Invalid LastNonce<Nonce");
 
         // verify input param with the signed data.
-        bytes32 hash = genHash(peer, createTime, version, num, bttcAddress);
+        bytes32 hash = genHash(peer, createTime, version, Nonce, bttcAddress);
         require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
         // // check bttcAddress and sender
@@ -116,12 +116,12 @@ contract BtfsStatus {
         uint index = (nowTime / 86400) % 30;
 
         // first report
-        if (peerMap[peer].lastNum == 0) {
-            if (num > 24) {
-                num = 24;
+        if (peerMap[peer].LastNonce == 0) {
+            if (Nonce > 24) {
+                Nonce = 24;
             }
 
-            peerMap[peer].hearts[index] = uint8(num);
+            peerMap[peer].hearts[index] = uint8(Nonce);
 
             totalStat.totalUsers += 1;
             totalStat.total += 1;
@@ -130,13 +130,13 @@ contract BtfsStatus {
             //     return;
             // }
 
-            setHeart(peer, num, nowTime);
-            totalStat.total += num - peerMap[peer].lastNum;
+            setHeart(peer, Nonce, nowTime);
+            totalStat.total += Nonce - peerMap[peer].LastNonce;
         }
 
         peerMap[peer].createTime = createTime;
         peerMap[peer].version = version;
-        peerMap[peer].lastNum = num;
+        peerMap[peer].LastNonce = Nonce;
         peerMap[peer].lastTime = nowTime;
 
 
@@ -145,18 +145,18 @@ contract BtfsStatus {
             peer,
             createTime,
             version,
-            num,
+            Nonce,
             nowTime,
             bttcAddress
         );
     }
 
-    function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint16 num, uint32 nowTime, address bttcAddress) internal {
+    function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint16 Nonce, uint32 nowTime, address bttcAddress) internal {
         emit statusReported(
             peer,
             createTime,
             version,
-            num,
+            Nonce,
             nowTime,
             bttcAddress,
             peerMap[peer].hearts
@@ -194,14 +194,14 @@ contract BtfsStatus {
         return (v, r, s);
     }
 
-    function genHash(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) internal pure returns (bytes32) {
-        bytes memory data = abi.encode(peer, createTime, version, num, bttcAddress);
+    function genHash(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress) internal pure returns (bytes32) {
+        bytes memory data = abi.encode(peer, createTime, version, Nonce, bttcAddress);
         return keccak256(abi.encode("\x19Ethereum Signed Message:\n", data.length, data));
     }
 
     // call from external
-    function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) external pure returns (bytes32) {
-        return genHash(peer, createTime, version, num, bttcAddress);
+    function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress) external pure returns (bytes32) {
+        return genHash(peer, createTime, version, Nonce, bttcAddress);
     }
 
     // call from external
