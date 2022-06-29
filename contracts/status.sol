@@ -203,6 +203,7 @@ contract BtfsStatus {
 
     // call from external
     function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 num, address bttcAddress) external pure returns (bytes32) {
+        // msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
         return keccak256(abi.encode(peer, createTime, version, num, bttcAddress));
     }
 
