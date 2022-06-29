@@ -2,11 +2,15 @@
 
 pragma solidity ^0.8.4;
 
+// Open Zeppelin libraries for controlling upgradability and access.
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 
 // BtfsStatus for hosts' heartbeat report
-contract BtfsStatus {
+contract BtfsStatus is Initializable, UUPSUpgradeable, OwnableUpgradeable{
     using SafeMath for uint256;
 
     // map[peer]info
@@ -27,7 +31,7 @@ contract BtfsStatus {
 
     event signAddressChanged(address lastSignAddress, address currentSignAddress);
     event versionChanged(string currentVersion, string version);
-    event statusReported(string peer, uint32 createTime, string version, uint16 Nonce, uint32 nowTime, address bttcAddress, uint16[30] hearts);
+    event statusReported(string peer, uint32 createTime, string version, uint32 Nonce, uint32 nowTime, address bttcAddress, uint16[30] hearts);
 
     // stat
     struct statistics {
@@ -74,7 +78,7 @@ contract BtfsStatus {
 
 
     // set heart, max idle days = 10
-    function setHeart(string memory peer, uint16 Nonce, uint32 nowTime) internal {
+    function setHeart(string memory peer, uint32 Nonce, uint32 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
         if (diffTime > 30 * 86400) {
             diffTime = 30 * 86400;
@@ -103,7 +107,7 @@ contract BtfsStatus {
     }
 
     // report status
-    function reportStatus(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress, bytes memory signed) external payable {
+    function reportStatus(string memory peer, uint32 createTime, string memory version, uint32 Nonce, address bttcAddress, bytes memory signed) external payable {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < Nonce, "reportStatus: Invalid Nonce");
         require(0 < signed.length, "reportStatus: Invalid signed");
@@ -155,7 +159,7 @@ contract BtfsStatus {
         );
     }
 
-    function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint16 Nonce, uint32 nowTime, address bttcAddress) internal {
+    function emitStatusReported(string memory peer, uint32 createTime, string memory version, uint32 Nonce, uint32 nowTime, address bttcAddress) internal {
         emit statusReported(
             peer,
             createTime,
@@ -198,13 +202,13 @@ contract BtfsStatus {
         return (v, r, s);
     }
 
-    function genHash(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress) internal pure returns (bytes32) {
+    function genHash(string memory peer, uint32 createTime, string memory version, uint32 Nonce, address bttcAddress) internal pure returns (bytes32) {
         bytes memory data = abi.encode(peer, createTime, version, Nonce, bttcAddress);
         return keccak256(abi.encode("\x19Ethereum Signed Message:\n", data.length, data));
     }
 
     // call from external
-    function genHashExt(string memory peer, uint32 createTime, string memory version, uint16 Nonce, address bttcAddress) external pure returns (bytes32) {
+    function genHashExt(string memory peer, uint32 createTime, string memory version, uint32 Nonce, address bttcAddress) external pure returns (bytes32) {
         return genHash(peer, createTime, version, Nonce, bttcAddress);
     }
 

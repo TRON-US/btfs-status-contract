@@ -7,7 +7,7 @@ const { ethers, upgrades } = require("hardhat");
 
 const SLICES = 8;
 async function main() {
-    const BtfsAirdrop = await ethers.getContractFactory("BtfsAirdrop");
+    const BtfsAirdrop = await ethers.getContractFactory("BtfsStatus");
 
     console.log("Deploying BtfsAirdrop...");
 
