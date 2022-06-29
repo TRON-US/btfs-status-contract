@@ -5,7 +5,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 
-// MerkleDistributor for airdrop to BTFS staker
+// BtfsStatus for hosts' heartbeat report
 contract BtfsStatus {
     using SafeMath for uint256;
 
@@ -13,7 +13,7 @@ contract BtfsStatus {
     struct info {
         uint32 createTime;
         string version;
-        uint32 LastNonce;
+        uint32 lastNonce;
         uint32 lastTime;
         uint16[30] hearts;
     }
@@ -37,20 +37,25 @@ contract BtfsStatus {
     statistics  public totalStat;
 
 
-    // owner
-    address public owner;
-    constructor() {
-        owner = msg.sender;
+//    constructor() {
+//    }
+
+    // initialize
+    function initialize() public initializer {
+        __Ownable_init();
     }
 
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
     // set current version, only owner do it
-    function setSignAddress(address addr) external {
+    function setSignAddress(address addr) public onlyOwner {
         emit signAddressChanged(currentSignAddress, addr);
         currentSignAddress = addr;
     }
 
     // set current version, only owner do it
-    function setCurrentVersion(string memory ver) external {
+    function setCurrentVersion(string memory ver) public onlyOwner {
         emit versionChanged(currentVersion, ver);
         currentVersion = ver;
     }
@@ -59,11 +64,11 @@ contract BtfsStatus {
     function getHighScoreHost() external returns(info[] memory) {}
 
     function getStatus(string memory peer) external view returns(string memory, uint32, string memory, uint32, uint32, uint16[30] memory) {
-        if (peerMap[peer].LastNonce == 0) {
+        if (peerMap[peer].lastNonce == 0) {
             uint16[30] memory hearts;
             return ("", 0, "", 0, 0, hearts);
         } else {
-            return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].LastNonce, peerMap[peer].lastTime, peerMap[peer].hearts);
+            return (peer, peerMap[peer].createTime, peerMap[peer].version, peerMap[peer].lastNonce, peerMap[peer].lastTime, peerMap[peer].hearts);
         }
     }
 
@@ -75,7 +80,7 @@ contract BtfsStatus {
             diffTime = 30 * 86400;
         }
 
-        uint256 diffNonce = Nonce - peerMap[peer].LastNonce;
+        uint256 diffNonce = Nonce - peerMap[peer].lastNonce;
         if (diffNonce > 30 * 24) {
             diffNonce = 30 * 24;
         }
@@ -102,21 +107,20 @@ contract BtfsStatus {
         require(0 < createTime, "reportStatus: Invalid createTime");
         require(0 < Nonce, "reportStatus: Invalid Nonce");
         require(0 < signed.length, "reportStatus: Invalid signed");
-        require(peerMap[peer].LastNonce <= Nonce, "reportStatus: Invalid LastNonce<Nonce");
+        require(peerMap[peer].lastNonce <= Nonce, "reportStatus: Invalid lastNonce<Nonce");
 
         // verify input param with the signed data.
         bytes32 hash = genHash(peer, createTime, version, Nonce, bttcAddress);
         require(verify(hash, signed), "reportStatus: Invalid signed address.");
 
-        // // check bttcAddress and sender
+        // only bttcAddress is sender， to report status
         // require(bttcAddress == msg.sender, "reportStatus: Invalid signed");
-        // return;
 
         uint32 nowTime = uint32(block.timestamp);
         uint index = (nowTime / 86400) % 30;
 
         // first report
-        if (peerMap[peer].LastNonce == 0) {
+        if (peerMap[peer].lastNonce == 0) {
             if (Nonce > 24) {
                 Nonce = 24;
             }
@@ -131,12 +135,12 @@ contract BtfsStatus {
             // }
 
             setHeart(peer, Nonce, nowTime);
-            totalStat.total += Nonce - peerMap[peer].LastNonce;
+            totalStat.total += Nonce - peerMap[peer].lastNonce;
         }
 
         peerMap[peer].createTime = createTime;
         peerMap[peer].version = version;
-        peerMap[peer].LastNonce = Nonce;
+        peerMap[peer].lastNonce = Nonce;
         peerMap[peer].lastTime = nowTime;
 
 
