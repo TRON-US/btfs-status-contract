@@ -13,9 +13,9 @@ contract BtfsStatus {
     struct info {
         uint32 createTime;
         string version;
-        uint16 lastNum;
+        uint16 lastNum; //Nounce uint32
         uint32 lastTime;
-        uint8[30] hearts;
+        uint8[30] hearts; //uint8
     }
     mapping(string => info) private peerMap;
 
@@ -71,13 +71,13 @@ contract BtfsStatus {
     // set heart, max idle days = 10
     function setHeart(string memory peer, uint16 num, uint32 nowTime) internal {
         uint256 diffTime = nowTime - peerMap[peer].lastTime;
-        if (diffTime > 10 * 86400) {
-            diffTime = 10 * 86400;
+        if (diffTime > 30 * 86400) {
+            diffTime = 30 * 86400;
         }
 
         uint256 diffNum = num - peerMap[peer].lastNum;
-        if (diffNum > 10 * 24) {
-            diffNum = 10 * 24;
+        if (diffNum > 30 * 24) {
+            diffNum = 30 * 24;
         }
 
         uint diffDays = diffTime / 86400;
@@ -124,12 +124,14 @@ contract BtfsStatus {
             peerMap[peer].hearts[index] = uint8(num);
 
             totalStat.totalUsers += 1;
+            totalStat.total += 1;
         } else {
-            // if (nowTime - peerMap[peer].lastTime < 86400){
+            // if (nowTime - peerMap[peer].lastTime <= 86400){
             //     return;
             // }
 
             setHeart(peer, num, nowTime);
+            totalStat.total += num - peerMap[peer].lastNum;
         }
 
         peerMap[peer].createTime = createTime;
@@ -137,8 +139,7 @@ contract BtfsStatus {
         peerMap[peer].lastNum = num;
         peerMap[peer].lastTime = nowTime;
 
-        // set total
-        totalStat.total += 1;
+
 
         emitStatusReported(
             peer,

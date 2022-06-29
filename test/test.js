@@ -53,7 +53,6 @@ describe('btfs status test', function () {
             let s = await this.greeter.getStatus(
                 '1',
             );
-
             console.log("...getStatus s = ", s)
 
             let num = s[3]
