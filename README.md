@@ -2,19 +2,14 @@
 
 ## Deploy
 
-deploy airdrop contract to BTTC network, copy the code of contracts to Remix, deploy it with metamask
+deploy btfs status contract to BTTC network, copy the code of contracts to Remix, deploy it with metamask
 
 ## Operation
 
-deploy contracts will generate one contract:MerkleDistributor
+deploy contracts will generate one contract:BtfsStatus
 
-
-1. call MerkleDistributor:proposewMerkleRoot(root) to propose pending root from proposalAuthority
-2. call MerkleDistributor:reviewPendingMerkleRoot(1) to review the pending root to root from reviewAuthority
-3. call MerkleDistributor:setTotalAmount to set the total airdrop of this period
-4. transfer enough WBTT to MerkleDistributor for airdrop
-
-
+1. call BtfsStatus:reportStatus(...) to report status info from host node.
+2. call BtfsStatus:getStatus(peer) to get status info.
 
 
 
