@@ -1,4 +1,4 @@
-# airdrop
+# btfs-status-contract
 
 ## Deploy
 
